@@ -1,7 +1,58 @@
 # CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+## Self-Driving Car Engineer Nanodegree Program
 
+# Model Predictive Controller Project
+
+## Intro
 ---
+
+This repository contains my solution to the Udacity Self Driving Car Nanodegree MPC Project. The aim of this project is to navigate a track in a Udacity-provided simulator, which communicates telemetry and track waypoint data via websocket, by sending steering and acceleration commands back to the simulator. The solution must be robust to 100ms latency, as one may encounter in real-world application.
+
+This solution, makes use of the IPOPT and CPPAD libraries to calculate an optimal trajectory and its associated actuation commands in order to minimize error with a third-degree polynomial fit to the given waypoints. The optimization considers only a short duration's worth of waypoints, and produces a trajectory for that duration based upon a model of the vehicle's kinematics and a cost function based mostly on the vehicle's cross-track error (roughly the distance from the track waypoints) and orientation angle error, with other cost factors included to improve performance.
+
+## Rubric Points
+---
+### The Model
+---
+The kinematic model includes the vehicle's x and y coordinates, orientation angle (psi), velocity, cross-track error and psi error (epsi). Actuator outputs are the acceleration and delta (steering angle). The model combines the state and actuations from the previous timestep to calculate the state for the current timestep based on the equations below:
+
+```
+// values at timestep [t+1] based on values at timestep [t] after dt seconds 
+// Lf is the distance between the front of the vehicle and the center of gravity
+
+x[t+1] = x[t] + v[t] * cos(psi[t]) * dt;
+y[t+1] = y[t] + v[t] * sin(psi[t]) * dt;
+psi[t+1] = psi[t] + v[t]/Lf * delta[t] * dt;
+v[t+1] = v[t] + a[t] * dt;
+cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt;
+epsi[t+1] = psi[t] - psi_des + v[t]/Lf * delta[t] * dt;
+```
+
+### Timestep Length and Elapsed Duration (N & dt)
+---
+The prediction horizon T is the product of the timestep length `N` (The number of timesteps in the horizon) and elapsed duration `dt` (how much time elapses between each actuation).
+
+The prediction horizon I settled on was one second, with N = 10 and dt = .1.
+
+With these values, the car can complete the track at both low (30mph) and high (200mph) speed. With higher N value, if the vehicle "overshot" the reference trajectory, it would begin to oscillate wildly and drive off the track. With lower value of N, the vehicle may drive straight off the track.
+
+Among all the pairs of parameters, (N = 10, dt = .1) performs the best result.
+
+### Polynomial Fitting and MPC Preprocessing
+---
+The point are first transformed into the vehicle's coordinate system, making the first point the origin. This is done by subtracting each point from the current position of the vehicle.
+
+Next, the orientation is also transformed to 0 so that the heading is straight forward. Each point is rotated by psi degrees.
+
+After that the vector of points is converted to an Eigen vector so that it is ready to be an argument in the polyfit function where the points are fitted to a 3rd order polynomial. That polynomial is then evaluated using the polyeval function to calculate the cross-track error.
+
+
+### Model Predictive Control with Latency
+---
+A delay of 100 ms need to be taken care of after the MPC works. When this latency was first introduced, the model oscillated about the reference trajectory and, at high speeds, drove off the track.
+
+In order to deal with the latency, I set the initial states to be the states after 100 ms. This allows the vehicle to "look ahead" and correct for where it will be in the future instead of where it is currently positioned.
+
 
 ## Dependencies
 
